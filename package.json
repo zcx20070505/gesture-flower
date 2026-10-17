@@ -1,0 +1,25 @@
+{
+  "name": "gesture-flower",
+  "version": "1.0.0",
+  "private": true,
+  "description": "手势控制的 Three.js 粒子花朵 —— 握拳花苞闭合，张开五指粒子绽放",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 5500",
+    "serve": "npx --yes serve -l 5500 .",
+    "check": "node --check main.js"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  },
+  "optionalDependencies": {
+    "@mediapipe/hands": "^0.4.1675469240"
+  },
+  "keywords": ["three.js", "mediapipe", "hand-tracking", "particles", "glsl", "webgl"],
+  "license": "MIT"
+}

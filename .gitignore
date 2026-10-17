@@ -1,0 +1,43 @@
+# ---------- 系统 / 编辑器 ----------
+Thumbs.db
+desktop.ini
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# ---------- 依赖 ----------
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ---------- 构建产物 ----------
+dist/
+build/
+
+# ---------- 测试与临时产物 ----------
+# 浏览器测试会把截图写到这里，属于本地生成物，不入库
+.test-output/
+*.log
+.dsh-tmp-*
+
+# 本地临时脚本（调试时生成的 .mjs / .mts）
+.c1.mjs
+.c2.mjs
+.c3.mjs
+.c4.mjs
+.chk.mjs
+.syntax*.mjs
+.dbg*.mjs
+.shots*.mjs
+.srv-pid
+.launcher-pid
+.launcher-test.log
+.final-test.log
+
+# ---------- 本地个性化配置 ----------
+# launcher.ps1 里写死了本机路径，如果自行改过可以本地保留
+*.local

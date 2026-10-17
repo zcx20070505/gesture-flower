@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <!-- 移动端：禁止缩放抖动，适配刘海屏 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#05060d" />
+  <title>指尖花开 · 手势控制粒子花朵</title>
+
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- ============================================================
+       Three.js 依赖映射（CDN 方案，免构建）
+       如果你使用 npm + Vite，删掉下面这段 importmap 即可，
+       Vite 会自动解析 `three` / `three/addons/...` 说明符。
+       ============================================================ -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<body>
+  <!-- =========================================================
+       1) 3D 画布容器：Three.js 的 canvas 会插入到这里
+       ========================================================= -->
+  <canvas id="gl"></canvas>
+
+  <!-- =========================================================
+       2) 摄像头视频（隐藏的原始流） + 背景镜像画布 + 骨架画布
+           - video 只作为数据源，不直接显示（避免镜像/裁切麻烦）
+           - bgCanvas 在 WebGL 中当作纹理使用（可选开关）
+           - overlay 用 2D 绘制手部关键点连线
+       ========================================================= -->
+  <video id="video" playsinline autoplay muted></video>
+  <canvas id="bg"></canvas>
+  <canvas id="overlay"></canvas>
+
+  <!-- =========================================================
+       3) HUD：张力条 / 数值 / 状态
+       ========================================================= -->
+  <div id="hud" class="hud" aria-hidden="true">
+    <div class="hud-row">
+      <span class="hud-label">TENSION</span>
+      <span id="tensionValue" class="hud-value">0.00</span>
+    </div>
+    <div class="hud-bar">
+      <div class="hud-bar-fill" id="tensionFill"></div>
+      <!-- 阈值刻度线：0.32 闭合 / 0.66 绽放 -->
+      <div class="hud-tick" style="left: 32%"></div>
+      <div class="hud-tick" style="left: 66%"></div>
+    </div>
+
+    <!-- 生长进度 -->
+    <div class="hud-row hud-row-2">
+      <span class="hud-label">GROW</span>
+      <span id="growValue" class="hud-value">1.00</span>
+    </div>
+    <div class="hud-bar hud-bar-grow">
+      <div class="hud-bar-fill hud-bar-fill-grow" id="growFill"></div>
+      <!-- 阶段刻度：种子期结束(35%) / 开始开花(55%) -->
+      <div class="hud-tick" style="left: 35%"></div>
+      <div class="hud-tick" style="left: 55%"></div>
+    </div>
+
+    <div class="hud-row hud-row-2">
+      <span class="hud-label">FLOWERS</span>
+      <span class="hud-value"><span id="clusterValue">1</span> 朵</span>
+    </div>
+
+    <div class="hud-state" id="bloomState">等待手势…</div>
+  </div>
+
+  <!-- 左上角标题 -->
+  <header class="title">
+    <h1>指尖花开</h1>
+    <p>握拳 → 花苞闭合 ｜ 张开五指 → 粒子绽放 ｜ 双手拉开 → 长出一片花丛</p>
+  </header>
+
+  <!-- =========================================================
+       4) 控制面板：实时调参（也用于无摄像头时手动演示）
+       ========================================================= -->
+  <button id="panelToggle" class="panel-toggle" title="显示/隐藏控制面板" aria-label="显示或隐藏控制面板">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+    </svg>
+  </button>
+
+  <aside id="panel" class="panel">
+    <div class="panel-head">
+      <strong>控制面板</strong>
+      <button id="panelClose" aria-label="收起控制面板">×</button>
+    </div>
+
+    <div class="panel-body">
+      <!-- 4.1 手势 / 张力 -->
+      <section class="group">
+        <h2>手势输入</h2>
+        <label class="switch">
+          <input type="checkbox" id="cameraToggle" checked />
+          <span>启用摄像头手势</span>
+        </label>
+
+        <div class="row">
+          <label for="manualTension">手动张力（演示/降级）</label>
+          <output id="manualTensionOut">0.00</output>
+        </div>
+        <input type="range" id="manualTension" min="0" max="1" step="0.01" value="0.85" />
+
+        <div class="row">
+          <label for="smoothing">平滑系数 smoothing</label>
+          <output id="smoothingOut">0.18</output>
+        </div>
+        <input type="range" id="smoothing" min="0.03" max="0.8" step="0.01" value="0.18" />
+
+        <div class="row">
+          <label for="gain">灵敏度 gain</label>
+          <output id="gainOut">1.00</output>
+        </div>
+        <input type="range" id="gain" min="0.5" max="1.8" step="0.01" value="1" />
+      </section>
+
+      <!-- 4.1.4 交互模式（单手 / 双手 二选一） -->
+      <section class="group">
+        <h2>交互模式</h2>
+        <div class="mode-picker" role="radiogroup" aria-label="交互模式">
+          <label class="mode-option">
+            <input type="radio" name="interactionMode" id="modeSingle" value="single" />
+            <span class="mode-card">
+              <span class="mode-icon" aria-hidden="true">☝</span>
+              <span class="mode-name">单手交互</span>
+              <span class="mode-desc">握拳闭合<br />张开五指绽放</span>
+            </span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="interactionMode" id="modeTwo" value="two" checked />
+            <span class="mode-card">
+              <span class="mode-icon" aria-hidden="true">🙌</span>
+              <span class="mode-name">双手交互</span>
+              <span class="mode-desc">拉开长出花丛<br />转动旋转花丛</span>
+            </span>
+          </label>
+        </div>
+
+        <!-- 只在双手模式下显示的子选项 -->
+        <div id="twoHandOptions" class="sub-options">
+          <label class="switch">
+            <input type="checkbox" id="multiClusterToggle" checked />
+            <span>拉开双手长出多朵花</span>
+          </label>
+          <p class="hint" id="twoHandHint">
+            双手距离 → 花朵数量（1~5 朵）<br />
+            双手同时张开 → 继续生长<br />
+            转动双手 → 旋转花丛<br />
+            整体移动 → 平移花丛
+          </p>
+        </div>
+
+        <p class="hint" id="singleHandHint" hidden>
+          握拳 → 花苞闭合<br />
+          张开五指 → 粒子绽放<br />
+          手掌移动 → 花朵轻摆
+        </p>
+      </section>
+
+      <!-- 4.1.5 生长动画 -->
+      <section class="group">
+        <h2>生长动画</h2>
+        <button id="replayGrow" class="wide-btn">▶ 重新播放生长动画</button>
+
+        <div class="row">
+          <label for="grow">手动生长进度</label>
+          <output id="growOut">0.00</output>
+        </div>
+        <input type="range" id="grow" min="0" max="1" step="0.01" value="0" />
+        <p class="hint">
+          种子 → 发芽 → 花苞 → 开花。<br />
+          拖动滑块可手动控制；拖回 0 交还给自动/手势。
+        </p>
+      </section>
+
+      <!-- 4.2 花朵渲染 -->
+      <section class="group">
+        <h2>花朵粒子</h2>
+        <div class="row">
+          <label for="particleCount">粒子数量</label>
+          <output id="particleCountOut">12000</output>
+        </div>
+        <input type="range" id="particleCount" min="5000" max="20000" step="500" value="12000" />
+
+        <div class="row">
+          <label for="petalCount">花瓣数量 petals</label>
+          <output id="petalCountOut">6</output>
+        </div>
+        <input type="range" id="petalCount" min="3" max="12" step="1" value="6" />
+
+        <div class="row">
+          <label for="bloom">手动绽放 bloom</label>
+          <output id="bloomOut">0.00</output>
+        </div>
+        <input type="range" id="bloom" min="0" max="2" step="0.01" value="0" />
+
+        <div class="row">
+          <label for="autoRotate">自动旋转速度</label>
+          <output id="autoRotateOut">0.12</output>
+        </div>
+        <input type="range" id="autoRotate" min="0" max="1" step="0.01" value="0.12" />
+      </section>
+
+      <!-- 4.3 显示开关 -->
+      <section class="group">
+        <h2>显示</h2>
+        <label class="switch"><input type="checkbox" id="showVideo" checked /><span>摄像头背景</span></label>
+        <label class="switch"><input type="checkbox" id="showSkeleton" checked /><span>手部骨架连线</span></label>
+        <label class="switch"><input type="checkbox" id="showHud" checked /><span>张力/生长 HUD</span></label>
+      </section>
+
+      <!-- 4.4 状态信息 -->
+      <section class="group">
+        <h2>状态</h2>
+        <pre id="status" class="status">初始化中…</pre>
+      </section>
+    </div>
+  </aside>
+
+  <!-- =========================================================
+       5) 启动遮罩：兼容浏览器“必须用户手势才能播放视频”的策略
+       ========================================================= -->
+  <div id="gate" class="gate">
+    <div class="gate-card">
+      <div class="gate-flower" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <h2>指尖花开</h2>
+      <p>点击开始，浏览器会请求摄像头权限。<br />拒绝授权也能用手动滑块体验花朵绽放。</p>
+      <button id="startBtn" class="primary">开始体验</button>
+      <p class="gate-tip">提示：本地需通过 HTTP 服务打开（file:// 无法使用摄像头）</p>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       6) 错误提示条
+       ========================================================= -->
+  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+  <!-- =========================================================
+       7) MediaPipe Hands（经典 UMD 版本，挂载 window.Hands）
+          放在 body 末尾，保证 DOM 就绪；main.js 会做可用性检测。
+          npm 方案：npm i @mediapipe/hands，并在 main.js 中
+          改为 import { Hands } from '@mediapipe/hands';
+       ========================================================= -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+
+  <!-- 主程序（ES Module） -->
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
