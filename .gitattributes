@@ -1,0 +1,17 @@
+# 统一换行符策略，避免 Windows / macOS / Linux 之间来回改文件
+# （尤其是 .bat / .ps1，换行符错了会直接跑不起来）
+
+* text=auto eol=lf
+
+# Windows 脚本必须用 CRLF，且 .bat 会被 cmd.exe 按代码页解析
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# 二进制文件不做换行转换
+*.png  binary
+*.ico  binary
+*.jpg  binary
+*.gif  binary
+*.woff binary
+*.woff2 binary
