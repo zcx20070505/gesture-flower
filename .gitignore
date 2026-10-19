@@ -41,3 +41,7 @@ build/
 # ---------- 本地个性化配置 ----------
 # launcher.ps1 里写死了本机路径，如果自行改过可以本地保留
 *.local
+
+# GIF ������м�֡������ docs/capture-gif.mjs �������ɣ�����⣩
+docs/gif-frames/
+docs/gif-preview.png

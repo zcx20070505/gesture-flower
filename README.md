@@ -18,6 +18,15 @@
 > 手机浏览器同样可以打开，用前置摄像头体验。
 
 <p align="center">
+  <img src="docs/demo.gif" width="100%" alt="演示：种子 → 发芽 → 花苞 → 绽放 → 双手长出一片花丛" />
+</p>
+<p align="center">
+  <em>完整演示：种子 → 发芽 → 花苞 → 张开五指绽放 → 双手拉开长出一片花丛</em>
+</p>
+
+### 两种交互模式
+
+<p align="center">
   <img src="docs/screenshots/01-single-bloom.png" width="49%" alt="单手模式 · 完全绽放" />
   <img src="docs/screenshots/03-two-hands-garden.png" width="49%" alt="双手模式 · 五朵花丛" />
 </p>
@@ -25,13 +34,15 @@
   <em>左：单手模式，张开五指完全绽放　|　右：双手模式，双手拉开长出一片花丛</em>
 </p>
 
+### 生长动画三阶段
+
 <p align="center">
   <img src="docs/screenshots/05-growth-seed.png" width="32%" alt="生长动画 · 种子" />
   <img src="docs/screenshots/04-growth-sprout.png" width="32%" alt="生长动画 · 发芽" />
   <img src="docs/screenshots/02-single-bud.png" width="32%" alt="花苞闭合" />
 </p>
 <p align="center">
-  <em>生长动画三阶段：种子 → 发芽 → 花苞</em>
+  <em>种子 → 发芽 → 花苞</em>
 </p>
 
 ## 功能特性
@@ -160,6 +171,9 @@ gesture-flower/
 ├── browser-test.mjs      浏览器测试：真实渲染、模式切换、双手交互、生长动画、降级（87 项）
 ├── docs/
 │   ├── shots.mjs         README 配图的生成脚本
+│   ├── capture-gif.mjs   GIF 演示范例的逐帧捕获脚本
+│   ├── make-gif.py       把捕获的帧合成 GIF（Pillow）
+│   ├── demo.gif          顶部演示动图
 │   └── screenshots/      展示截图
 ├── .github/workflows/
 │   └── pages.yml         自动部署到 GitHub Pages
@@ -191,6 +205,30 @@ gesture-flower/
 > 然后把 `pages.yml` 里无需改动（路径都是相对的），推送即可。
 > 若你的仓库名不叫 `gesture-flower`，站点地址会变成
 > `https://<用户名>.github.io/<仓库名>/`，其余无需改动 —— 因为所有资源引用都是相对路径。
+
+### 重新生成演示 GIF / 配图
+
+README 里的动图和截图都由脚本生成，改了效果后可以一键重做：
+
+```bash
+# 先起本地服务
+python serve.py --port 5500
+
+# 另开终端：生成静态截图（docs/screenshots/）
+node docs/shots.mjs
+
+# 生成 GIF 演示（docs/gif-frames/ → docs/demo.gif）
+node docs/capture-gif.mjs
+python docs/make-gif.py
+```
+
+**为什么要逐帧捕获而不是录屏**：本项目在无 GPU 的 CI/容器环境里靠 SwiftShader 软件渲染，
+实时帧率只有约 5fps，直接录屏会非常卡。`capture-gif.mjs` 的做法是
+**逐帧设定状态 → 等渲染稳定 → 截图**，动画节奏完全可控，不受实际帧率影响。
+
+脚本里通过包装 `stage.render` 与 `composer.render` 来钉住每帧的
+`grow / bloom / cluster 数量与位置 / 相机 / 曝光`，并临时隐藏 HUD、
+关闭背景星尘（小尺寸下会变成杂点），让 GIF 画面聚焦在花朵本身。
 
 `main.js` 的模块划分：
 
