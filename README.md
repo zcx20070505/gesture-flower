@@ -6,6 +6,18 @@
 > 支持**单手**与**双手**两种交互模式，并带有一段**种子 → 发芽 → 花苞 → 开花**的生长动画。
 
 <p align="center">
+  <a href="https://zcx20070505.github.io/gesture-flower/">
+    <img src="https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%20Demo-%E7%AB%8B%E5%8D%B3%E4%BD%93%E9%AA%8C-brightgreen?style=for-the-badge&logo=githubpages&logoColor=white" alt="Online Demo" />
+  </a>
+</p>
+<p align="center">
+  <strong>👉 <a href="https://zcx20070505.github.io/gesture-flower/">点击打开在线 Demo</a>（无需安装，允许摄像头即可）</strong>
+</p>
+
+> 💡 在线 Demo 部署在 GitHub Pages（HTTPS），摄像头权限可正常使用。
+> 手机浏览器同样可以打开，用前置摄像头体验。
+
+<p align="center">
   <img src="docs/screenshots/01-single-bloom.png" width="49%" alt="单手模式 · 完全绽放" />
   <img src="docs/screenshots/03-two-hands-garden.png" width="49%" alt="双手模式 · 五朵花丛" />
 </p>
@@ -71,10 +83,16 @@
 
 ## 快速开始
 
-### 方式一：直接用静态服务（零构建，推荐）
+### 方式零：在线直接玩（最快）
+
+打开 **<https://zcx20070505.github.io/gesture-flower/>** → 点「开始体验」→ 允许摄像头。
+
+无需安装任何东西。手机同样可用（建议横屏）。
+
+### 方式一：本地静态服务（零构建，推荐）
 
 ```bash
-git clone https://github.com/<your-name>/gesture-flower.git
+git clone https://github.com/zcx20070505/gesture-flower.git
 cd gesture-flower
 
 # 起一个本地 HTTP 服务（三选一）
@@ -143,6 +161,8 @@ gesture-flower/
 ├── docs/
 │   ├── shots.mjs         README 配图的生成脚本
 │   └── screenshots/      展示截图
+├── .github/workflows/
+│   └── pages.yml         自动部署到 GitHub Pages
 │
 │  ── 以下为 Windows 桌面图标相关（非 Windows 可忽略）──
 ├── start.bat             桌面图标入口（纯 ASCII 转发脚本）
@@ -152,6 +172,25 @@ gesture-flower/
 ├── make-icon.mjs         图标生成脚本（纯 Node 画 PNG + ICO，无第三方依赖）
 └── README.md             本文档
 ```
+
+### 部署到 GitHub Pages
+
+线上地址：**<https://zcx20070505.github.io/gesture-flower/>**
+
+推送到 `main` 分支即自动部署，流程定义在 `.github/workflows/pages.yml`：
+
+1. 检出代码，`actions/configure-pages` 首次运行时自动在仓库设置里启用 Pages
+2. 只把 `index.html` / `style.css` / `main.js` / 图标 复制到 `_site`
+   （`serve.py`、`launcher.ps1`、测试脚本这些开发用文件**不会**出现在站点上）
+3. 写入 `.nojekyll`，避免 Jekyll 处理
+4. `upload-pages-artifact` + `deploy-pages` 发布
+
+**本项目是纯静态站点**：Three.js 与 MediaPipe 都走 CDN，不需要 `npm install` 和构建步骤。
+
+> **Fork 后自己部署**：进仓库 Settings → Pages → Source 选 **GitHub Actions**，
+> 然后把 `pages.yml` 里无需改动（路径都是相对的），推送即可。
+> 若你的仓库名不叫 `gesture-flower`，站点地址会变成
+> `https://<用户名>.github.io/<仓库名>/`，其余无需改动 —— 因为所有资源引用都是相对路径。
 
 `main.js` 的模块划分：
 

@@ -1,0 +1,64 @@
+name: Deploy to GitHub Pages
+
+# 触发条件：
+#   · 推送到 main 分支 → 自动部署
+#   · 也可在 Actions 页面手动点 Run workflow
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# GitHub Pages 部署所需的最小权限
+permissions:
+  contents: read   # 读取仓库代码
+  pages: write     # 写入 Pages
+  id-token: write  # OIDC，供 deploy-pages 使用
+
+# 同一时间只允许一个 Pages 部署，避免并发冲突
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with:
+          # 首次运行时自动在仓库设置里启用 Pages，无需手动点
+          enablement: true
+
+      # 本项目是纯静态页面：Three.js 与 MediaPipe 都通过 CDN 引入，
+      # 不需要 npm install / 构建，只把网页必需的几个文件挑出来发布。
+      # 这样 serve.py / launcher.ps1 / 测试脚本等开发用文件不会出现在站点上。
+      - name: Collect static files
+        run: |
+          mkdir -p _site
+          for f in index.html style.css main.js icon.ico icon-256.png; do
+            if [ -f "$f" ]; then
+              cp "$f" _site/
+              echo "packed: $f"
+            else
+              echo "skip (missing): $f"
+            fi
+          done
+          echo "--- _site ---"
+          ls -la _site
+          # 禁止 Jekyll 处理
+          touch _site/.nojekyll
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
